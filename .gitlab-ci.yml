@@ -1,0 +1,67 @@
+stages:
+  - build
+  - notification
+
+build:
+  stage: build
+  tags:
+  - docker
+
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+
+  services:
+  - name: docker:dind
+    entrypoint: ["env", "-u", "DOCKER_HOST"]
+    command: ["dockerd-entrypoint.sh", "--insecure-registry=unity.servehttp.com:5000"]
+
+  before_script:
+    - apk add --update git curl
+  script: 
+    - wget -c https://github.com/zmwangx/ets/releases/download/v0.2.1/ets_0.2.1_linux_amd64.tar.gz -O - | tar -xz -C /usr/local/bin
+    - docker build --no-cache -t $DOCKER_REGISTRY_ADDRESS/$CI_PROJECT_NAME:$CI_COMMIT_REF_NAME-test --build-arg ENVIRONMENT=TEST .
+    - docker push $DOCKER_REGISTRY_ADDRESS/$CI_PROJECT_NAME:$CI_COMMIT_REF_NAME-test
+  only:
+    refs:
+      - branches
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /make-test-build/
+
+
+
+
+success_notification:
+  image: alpine:latest
+  tags:
+  - docker
+  stage: notification
+  script:
+    - apk add --update git curl
+    - wget https://raw.githubusercontent.com/DiscordHooks/gitlab-ci-discord-webhook/master/send.sh
+    - chmod +x send.sh
+    - /bin/ash ./send.sh success $WEBHOOK_URL_API
+  only:
+    refs:
+      - branches
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /make-test-build/
+  when: on_success
+
+failure_notification:
+  image: alpine:latest
+  tags:
+  - docker
+  stage: notification
+  script:
+    - apk add --update git curl
+    - wget https://raw.githubusercontent.com/DiscordHooks/gitlab-ci-discord-webhook/master/send.sh
+    - chmod +x send.sh
+    - /bin/ash ./send.sh failure $WEBHOOK_URL_API
+  only:
+    refs:
+      - branches
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /make-test-build/
+  when: on_failure

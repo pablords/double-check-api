@@ -1,0 +1,25 @@
+/login:
+  post:
+    tags:
+      - Auth
+    security: []
+    description: Login
+    parameters:
+      - name: credentials
+        in: body
+        required: true
+        schema:
+          properties:
+            matricula:
+              type: string
+              example: '763782'
+              required: true
+            password:
+              type: string
+              example: '1234567890'
+              required: true
+    produces:
+      - application/json
+    responses:
+      200:
+        description: Success
